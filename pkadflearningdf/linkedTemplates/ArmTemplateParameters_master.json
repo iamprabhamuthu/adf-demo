@@ -1,0 +1,33 @@
+{
+	"$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"factoryName": {
+			"value": "pkadflearningdf"
+		},
+		"AzureSqlDatabase1_password": {
+			"value": ""
+		},
+		"AzureSqlDatabase1_properties_typeProperties_server": {
+			"value": "pkadflearning.database.windows.net"
+		},
+		"AzureSqlDatabase1_properties_typeProperties_database": {
+			"value": "pkmydb"
+		},
+		"AzureSqlDatabase1_properties_typeProperties_userName": {
+			"value": "iamprabhamuthu"
+		},
+		"LS_ADLS_properties_typeProperties_url": {
+			"value": "https://demopktorage.dfs.core.windows.net/"
+		},
+		"trigger_file_event_properties_typeProperties_scope": {
+			"value": "/subscriptions/dc8148f2-ae50-4440-9544-bac25731e747/resourceGroups/ADF-learning/providers/Microsoft.Storage/storageAccounts/demopktorage"
+		},
+		"containerUri": {
+			"value": ""
+		},
+		"containerSasToken": {
+			"value": ""
+		}
+	}
+}
