@@ -1,0 +1,286 @@
+{
+	"name": "pl_demo_ingest",
+	"properties": {
+		"activities": [
+			{
+				"name": "Execute send email",
+				"type": "ExecutePipeline",
+				"state": "Inactive",
+				"onInactiveMarkAs": "Succeeded",
+				"dependsOn": [
+					{
+						"activity": "CheckSrcCnt",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "PL_email_demo",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"tablename": {
+							"value": "@pipeline().parameters.tablename",
+							"type": "Expression"
+						},
+						"emailrec": {
+							"value": "@pipeline().globalParameters.email_rec",
+							"type": "Expression"
+						},
+						"status": "success"
+					}
+				}
+			},
+			{
+				"name": "Execute send email Failure",
+				"type": "ExecutePipeline",
+				"state": "Inactive",
+				"onInactiveMarkAs": "Succeeded",
+				"dependsOn": [
+					{
+						"activity": "CheckSrcCnt",
+						"dependencyConditions": [
+							"Failed"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "PL_email_demo",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"tablename": {
+							"value": "@pipeline().parameters.tablename",
+							"type": "Expression"
+						},
+						"emailrec": {
+							"value": "@pipeline().globalParameters.email_rec",
+							"type": "Expression"
+						},
+						"status": "Failure"
+					}
+				}
+			},
+			{
+				"name": "metadataLookup",
+				"type": "Lookup",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "AzureSqlSource",
+						"sqlReaderQuery": {
+							"value": "select watermark_value from metadata.table_watermarks where table_name = '@{toLower(pipeline().parameters.tablename)}'",
+							"type": "Expression"
+						},
+						"queryTimeout": "02:00:00",
+						"partitionOption": "None"
+					},
+					"dataset": {
+						"referenceName": "pk_sql_server",
+						"type": "DatasetReference",
+						"parameters": {
+							"schema": "dbo",
+							"tablename": "products"
+						}
+					},
+					"firstRowOnly": true
+				}
+			},
+			{
+				"name": "CheckSrcCnt",
+				"type": "IfCondition",
+				"dependsOn": [
+					{
+						"activity": "checkforincrecords",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"expression": {
+						"value": "@greater(activity('checkforincrecords').output.firstRow.Cnt,0)",
+						"type": "Expression"
+					},
+					"ifTrueActivities": [
+						{
+							"name": "ingestsqlcopy",
+							"type": "Copy",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"source": {
+									"type": "AzureSqlSource",
+									"sqlReaderQuery": {
+										"value": "select * from dbo.@{pipeline().parameters.tablename} where modifieddate > '@{activity('metadataLookup').output.firstRow.watermark_value}'",
+										"type": "Expression"
+									},
+									"queryTimeout": "02:00:00",
+									"partitionOption": "None"
+								},
+								"sink": {
+									"type": "DelimitedTextSink",
+									"storeSettings": {
+										"type": "AzureBlobFSWriteSettings"
+									},
+									"formatSettings": {
+										"type": "DelimitedTextWriteSettings",
+										"quoteAllText": true,
+										"fileExtension": ".txt"
+									}
+								},
+								"enableStaging": false,
+								"translator": {
+									"type": "TabularTranslator",
+									"typeConversion": true,
+									"typeConversionSettings": {
+										"allowDataTruncation": true,
+										"treatBooleanAsNumber": false
+									}
+								}
+							},
+							"inputs": [
+								{
+									"referenceName": "pk_sql_server",
+									"type": "DatasetReference",
+									"parameters": {
+										"schema": "dbo",
+										"tablename": {
+											"value": "@pipeline().parameters.tablename",
+											"type": "Expression"
+										}
+									}
+								}
+							],
+							"outputs": [
+								{
+									"referenceName": "ADLS_CSV_demo",
+									"type": "DatasetReference",
+									"parameters": {
+										"tablename": {
+											"value": "@toLower(pipeline().parameters.tablename)",
+											"type": "Expression"
+										}
+									}
+								}
+							]
+						},
+						{
+							"name": "updateWatermark",
+							"type": "Script",
+							"dependsOn": [
+								{
+									"activity": "ingestsqlcopy",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"linkedServiceName": {
+								"referenceName": "AzureSqlDatabase1",
+								"type": "LinkedServiceReference"
+							},
+							"typeProperties": {
+								"scripts": [
+									{
+										"type": "Query",
+										"text": {
+											"value": "Update metadata.table_watermarks \nSet watermark_value = SYSUTCDATETIME()\nwhere 1=1\nand table_name = '@{toLower(pipeline().parameters.tablename)}'",
+											"type": "Expression"
+										}
+									}
+								],
+								"scriptBlockExecutionTimeout": "02:00:00"
+							}
+						}
+					]
+				}
+			},
+			{
+				"name": "checkforincrecords",
+				"type": "Lookup",
+				"dependsOn": [
+					{
+						"activity": "metadataLookup",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "AzureSqlSource",
+						"sqlReaderQuery": {
+							"value": "select count(*) as Cnt from dbo.@{pipeline().parameters.tablename} where modifieddate > '@{activity('metadataLookup').output.firstRow.watermark_value}'",
+							"type": "Expression"
+						},
+						"queryTimeout": "02:00:00",
+						"partitionOption": "None"
+					},
+					"dataset": {
+						"referenceName": "pk_sql_server",
+						"type": "DatasetReference",
+						"parameters": {
+							"schema": "dbo",
+							"tablename": "customers"
+						}
+					}
+				}
+			}
+		],
+		"parameters": {
+			"tablename": {
+				"type": "string",
+				"defaultValue": "customers"
+			}
+		},
+		"annotations": [],
+		"lastPublishTime": "2026-10-14T23:13:13Z"
+	},
+	"type": "Microsoft.DataFactory/factories/pipelines"
+}

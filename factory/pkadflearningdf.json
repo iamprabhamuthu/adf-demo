@@ -1,0 +1,21 @@
+{
+	"name": "pkadflearningdf",
+	"properties": {
+		"globalParameters": {
+			"email_rec": {
+				"type": "string",
+				"value": "myselfpk2025@gmail.com"
+			}
+		},
+		"trustModeClaimForMi": {
+			"value": "Disabled",
+			"editable": true
+		}
+	},
+	"location": "centralus",
+	"identity": {
+		"type": "SystemAssigned",
+		"principalId": "d5b8bedf-c5f8-486a-ac5a-df2fb870eb86",
+		"tenantId": "efb833cd-aeea-4c3b-b3e1-a9b8fa8bf0dc"
+	}
+}
