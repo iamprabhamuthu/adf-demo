@@ -5,9 +5,6 @@
 		"factoryName": {
 			"value": "pkadflearningdf"
 		},
-		"AzureSqlDatabase1_password": {
-			"value": ""
-		},
 		"AzureSqlDatabase1_properties_typeProperties_server": {
 			"value": "pkadflearning.database.windows.net"
 		},
@@ -22,6 +19,9 @@
 		},
 		"trigger_file_event_properties_typeProperties_scope": {
 			"value": "/subscriptions/dc8148f2-ae50-4440-9544-bac25731e747/resourceGroups/ADF-learning/providers/Microsoft.Storage/storageAccounts/demopktorage"
+		},
+		"AzureKeyVault1_properties_typeProperties_baseUrl": {
+			"value": "https://keyvaultdemopk.vault.azure.net/"
 		},
 		"containerUri": {
 			"value": ""
